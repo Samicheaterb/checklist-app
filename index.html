@@ -1,0 +1,757 @@
+import React, { useState, useEffect } from 'react';
+import { Check, Plus, Trash2, Settings, FileDown, FileUp, Copy, RefreshCw, ChevronDown, ChevronUp, Clipboard } from 'lucide-react';
+
+const ChecklistApp = () => {
+  // Default configurations
+  const defaultConfig = {
+    sections: [
+      {
+        id: 'section-1',
+        name: 'Integrity',
+        subsections: [
+          {
+            id: 'subsection-1-1',
+            prefix: 'candidate is more likely to',
+            items: [
+              { id: 'item-1-1-1', text: 'lose a job', checked: false },
+              { id: 'item-1-1-2', text: 'take a risk', checked: false },
+              { id: 'item-1-1-3', text: 'lose money', checked: false }
+            ]
+          },
+          {
+            id: 'subsection-1-2',
+            prefix: 'candidate is more likely to exhibit',
+            items: [
+              { id: 'item-1-2-1', text: 'difficulties making money without stealing', checked: false },
+              { id: 'item-1-2-2', text: 'difficulties not stalking others', checked: false },
+              { id: 'item-1-2-3', text: 'difficulties maintaining a job', checked: false }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'section-2',
+        name: 'Communication',
+        subsections: [
+          {
+            id: 'subsection-2-1',
+            prefix: 'candidate demonstrates',
+            items: [
+              { id: 'item-2-1-1', text: 'clear verbal expression', checked: false },
+              { id: 'item-2-1-2', text: 'active listening skills', checked: false },
+              { id: 'item-2-1-3', text: 'empathy in conversations', checked: false }
+            ]
+          }
+        ]
+      }
+    ]
+  };
+
+  const defaultSettings = {
+    itemsPerSentence: 2,
+    sentenceConnector: 'and',
+    paragraphConnector: 'Also',
+    listFormat: 'oxford',
+    sectionSuffix: ' Section:',
+    resultCase: 'sentence'
+  };
+
+  // State management
+  const [config, setConfig] = useState(() => {
+    const saved = localStorage.getItem('checklistConfig');
+    return saved ? JSON.parse(saved) : defaultConfig;
+  });
+
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem('checklistSettings');
+    return saved ? JSON.parse(saved) : defaultSettings;
+  });
+
+  const [activeTab, setActiveTab] = useState('checklist');
+  const [results, setResults] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({});
+  const [notification, setNotification] = useState(null);
+
+  // Save to localStorage whenever config or settings change
+  useEffect(() => {
+    localStorage.setItem('checklistConfig', JSON.stringify(config));
+  }, [config]);
+
+  useEffect(() => {
+    localStorage.setItem('checklistSettings', JSON.stringify(settings));
+  }, [settings]);
+
+  // Show notification
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  // Generate unique IDs
+  const generateId = () => `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Toggle section expansion
+  const toggleSection = (sectionId) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
+  // Update checkbox state
+  const toggleCheckbox = (sectionId, subsectionId, itemId) => {
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.map(section =>
+        section.id === sectionId
+          ? {
+              ...section,
+              subsections: section.subsections.map(subsection =>
+                subsection.id === subsectionId
+                  ? {
+                      ...subsection,
+                      items: subsection.items.map(item =>
+                        item.id === itemId ? { ...item, checked: !item.checked } : item
+                      )
+                    }
+                  : subsection
+              )
+            }
+          : section
+      )
+    }));
+  };
+
+  // Format text case
+  const formatCase = (text) => {
+    switch (settings.resultCase) {
+      case 'lower':
+        return text.toLowerCase();
+      case 'title':
+        return text.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+      default:
+        return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+  };
+
+  // Generate results
+  const generateResults = () => {
+    let resultText = '';
+    
+    config.sections.forEach(section => {
+      const sectionResults = [];
+      
+      section.subsections.forEach(subsection => {
+        const checkedItems = subsection.items.filter(item => item.checked);
+        
+        if (checkedItems.length > 0) {
+          const sentences = [];
+          
+          for (let i = 0; i < checkedItems.length; i += settings.itemsPerSentence) {
+            const items = checkedItems.slice(i, i + settings.itemsPerSentence).map(item => item.text);
+            let sentence = `The ${subsection.prefix} `;
+            
+            if (items.length === 1) {
+              sentence += items[0] + '.';
+            } else if (items.length === 2) {
+              const connector = settings.sentenceConnector === ',' ? ', ' : ` ${settings.sentenceConnector} `;
+              sentence += items[0] + connector + items[1] + '.';
+            } else {
+              if (settings.listFormat === 'oxford') {
+                sentence += items.slice(0, -1).join(', ') + ', and ' + items[items.length - 1] + '.';
+              } else if (settings.listFormat === 'no-oxford') {
+                sentence += items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1] + '.';
+              } else {
+                sentence += items.join('; ') + '.';
+              }
+            }
+            
+            sentences.push(formatCase(sentence));
+          }
+          
+          let paragraph = sentences[0];
+          for (let i = 1; i < sentences.length; i++) {
+            paragraph += ` ${settings.paragraphConnector}, ` + sentences[i].charAt(0).toLowerCase() + sentences[i].slice(1);
+          }
+          
+          sectionResults.push(paragraph);
+        }
+      });
+      
+      if (sectionResults.length > 0) {
+        resultText += `${section.name}${settings.sectionSuffix}\n${sectionResults.join(' ')}\n\n`;
+      }
+    });
+    
+    setResults(resultText.trim());
+    setShowResults(true);
+  };
+
+  // Clear all checkboxes
+  const clearAll = () => {
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.map(section => ({
+        ...section,
+        subsections: section.subsections.map(subsection => ({
+          ...subsection,
+          items: subsection.items.map(item => ({ ...item, checked: false }))
+        }))
+      }))
+    }));
+    setShowResults(false);
+    showNotification('All checkboxes cleared');
+  };
+
+  // Copy results to clipboard
+  const copyResults = async () => {
+    try {
+      await navigator.clipboard.writeText(results);
+      showNotification('Results copied to clipboard');
+    } catch (err) {
+      showNotification('Failed to copy results', 'error');
+    }
+  };
+
+  // Add/Edit/Remove functions
+  const addSection = () => {
+    const newSection = {
+      id: generateId(),
+      name: 'New Section',
+      subsections: [
+        {
+          id: generateId(),
+          prefix: 'candidate',
+          items: [
+            { id: generateId(), text: 'example item', checked: false }
+          ]
+        }
+      ]
+    };
+    setConfig(prev => ({ ...prev, sections: [...prev.sections, newSection] }));
+  };
+
+  const updateSectionName = (sectionId, name) => {
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.map(section =>
+        section.id === sectionId ? { ...section, name } : section
+      )
+    }));
+  };
+
+  const removeSection = (sectionId) => {
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.filter(section => section.id !== sectionId)
+    }));
+  };
+
+  const addSubsection = (sectionId) => {
+    const newSubsection = {
+      id: generateId(),
+      prefix: 'candidate',
+      items: [{ id: generateId(), text: 'example item', checked: false }]
+    };
+    
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.map(section =>
+        section.id === sectionId
+          ? { ...section, subsections: [...section.subsections, newSubsection] }
+          : section
+      )
+    }));
+  };
+
+  const updateSubsectionPrefix = (sectionId, subsectionId, prefix) => {
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.map(section =>
+        section.id === sectionId
+          ? {
+              ...section,
+              subsections: section.subsections.map(subsection =>
+                subsection.id === subsectionId ? { ...subsection, prefix } : subsection
+              )
+            }
+          : section
+      )
+    }));
+  };
+
+  const removeSubsection = (sectionId, subsectionId) => {
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.map(section =>
+        section.id === sectionId
+          ? {
+              ...section,
+              subsections: section.subsections.filter(sub => sub.id !== subsectionId)
+            }
+          : section
+      )
+    }));
+  };
+
+  const addItem = (sectionId, subsectionId) => {
+    const newItem = { id: generateId(), text: 'new item', checked: false };
+    
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.map(section =>
+        section.id === sectionId
+          ? {
+              ...section,
+              subsections: section.subsections.map(subsection =>
+                subsection.id === subsectionId
+                  ? { ...subsection, items: [...subsection.items, newItem] }
+                  : subsection
+              )
+            }
+          : section
+      )
+    }));
+  };
+
+  const updateItem = (sectionId, subsectionId, itemId, text) => {
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.map(section =>
+        section.id === sectionId
+          ? {
+              ...section,
+              subsections: section.subsections.map(subsection =>
+                subsection.id === subsectionId
+                  ? {
+                      ...subsection,
+                      items: subsection.items.map(item =>
+                        item.id === itemId ? { ...item, text } : item
+                      )
+                    }
+                  : subsection
+              )
+            }
+          : section
+      )
+    }));
+  };
+
+  const removeItem = (sectionId, subsectionId, itemId) => {
+    setConfig(prev => ({
+      ...prev,
+      sections: prev.sections.map(section =>
+        section.id === sectionId
+          ? {
+              ...section,
+              subsections: section.subsections.map(subsection =>
+                subsection.id === subsectionId
+                  ? {
+                      ...subsection,
+                      items: subsection.items.filter(item => item.id !== itemId)
+                    }
+                  : subsection
+              )
+            }
+          : section
+      )
+    }));
+  };
+
+  // Export configuration
+  const exportConfig = () => {
+    const dataStr = JSON.stringify({ config, settings }, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', 'checklist-config.json');
+    linkElement.click();
+    showNotification('Configuration exported');
+  };
+
+  // Import configuration
+  const importConfig = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (imported.config) setConfig(imported.config);
+        if (imported.settings) setSettings(imported.settings);
+        showNotification('Configuration imported successfully');
+      } catch (error) {
+        showNotification('Error importing configuration', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Reset to default
+  const resetToDefault = () => {
+    if (window.confirm('Reset to default configuration? This will remove all custom sections.')) {
+      setConfig(defaultConfig);
+      setSettings(defaultSettings);
+      showNotification('Reset to default configuration');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <h1 className="text-2xl font-bold text-gray-900">Assessment Checklist</h1>
+            <nav className="flex space-x-8">
+              {['checklist', 'configure', 'settings'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`capitalize px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === tab
+                      ? 'text-blue-600 bg-blue-50'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab === 'checklist' && <Clipboard className="inline w-4 h-4 mr-1" />}
+                  {tab === 'configure' && <Settings className="inline w-4 h-4 mr-1" />}
+                  {tab === 'settings' && <Settings className="inline w-4 h-4 mr-1" />}
+                  {tab}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      {/* Notification */}
+      {notification && (
+        <div className={`fixed top-20 right-4 z-50 p-4 rounded-lg shadow-lg transition-all ${
+          notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'
+        } text-white`}>
+          {notification.message}
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Checklist Tab */}
+        {activeTab === 'checklist' && (
+          <div className="space-y-6">
+            {config.sections.map((section) => (
+              <div key={section.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                >
+                  <h2 className="text-xl font-semibold text-gray-900">{section.name}</h2>
+                  {expandedSections[section.id] ? (
+                    <ChevronUp className="w-5 h-5 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                  )}
+                </button>
+                
+                {(expandedSections[section.id] !== false) && (
+                  <div className="px-6 pb-4 space-y-4">
+                    {section.subsections.map((subsection) => (
+                      <div key={subsection.id} className="bg-gray-50 rounded-lg p-4">
+                        <h3 className="font-medium text-gray-700 mb-3">
+                          The {subsection.prefix}:
+                        </h3>
+                        <div className="space-y-2">
+                          {subsection.items.map((item) => (
+                            <label
+                              key={item.id}
+                              className="flex items-center space-x-3 hover:bg-gray-100 p-2 rounded transition-colors cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={item.checked}
+                                onChange={() => toggleCheckbox(section.id, subsection.id, item.id)}
+                                className="h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
+                              />
+                              <span className="text-gray-700">{item.text}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            <div className="flex gap-4">
+              <button
+                onClick={generateResults}
+                className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Check className="w-5 h-5" />
+                Generate Results
+              </button>
+              <button
+                onClick={clearAll}
+                className="px-6 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+              >
+                <RefreshCw className="w-5 h-5" />
+                Clear All
+              </button>
+            </div>
+            
+            {showResults && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-blue-900 mb-4">Generated Results</h3>
+                <pre className="whitespace-pre-wrap text-gray-700 bg-white p-4 rounded border border-blue-100">
+                  {results}
+                </pre>
+                <button
+                  onClick={copyResults}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy to Clipboard
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Configure Tab */}
+        {activeTab === 'configure' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Configure Sections</h2>
+              
+              {config.sections.map((section) => (
+                <div key={section.id} className="mb-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <input
+                      type="text"
+                      value={section.name}
+                      onChange={(e) => updateSectionName(section.id, e.target.value)}
+                      className="text-lg font-medium bg-white border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => removeSection(section.id)}
+                      className="text-red-600 hover:text-red-700 p-2"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  {section.subsections.map((subsection) => (
+                    <div key={subsection.id} className="mb-4 p-3 bg-white rounded border border-gray-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-gray-600">The</span>
+                          <input
+                            type="text"
+                            value={subsection.prefix}
+                            onChange={(e) => updateSubsectionPrefix(section.id, subsection.id, e.target.value)}
+                            className="flex-1 bg-gray-50 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-gray-600">:</span>
+                        </div>
+                        <button
+                          onClick={() => removeSubsection(section.id, subsection.id)}
+                          className="text-red-600 hover:text-red-700 p-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-2 ml-4">
+                        {subsection.items.map((item) => (
+                          <div key={item.id} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={item.text}
+                              onChange={(e) => updateItem(section.id, subsection.id, item.id, e.target.value)}
+                              className="flex-1 bg-gray-50 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                              onClick={() => removeItem(section.id, subsection.id, item.id)}
+                              className="text-red-600 hover:text-red-700 p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => addItem(section.id, subsection.id)}
+                          className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Item
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <button
+                    onClick={() => addSubsection(section.id)}
+                    className="text-blue-600 hover:text-blue-700 flex items-center gap-1 mt-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Subsection
+                  </button>
+                </div>
+              ))}
+              
+              <button
+                onClick={addSection}
+                className="px-4 py-2 bg-green-600 text-white font-medium rounded hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Add New Section
+              </button>
+            </div>
+            
+            {/* Export/Import */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-yellow-900 mb-4">Export/Import Configuration</h3>
+              <div className="flex gap-4">
+                <button
+                  onClick={exportConfig}
+                  className="px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Export
+                </button>
+                <label className="px-4 py-2 bg-blue-600 text-white font-medium rounded hover:bg-blue-700 transition-colors flex items-center gap-2 cursor-pointer">
+                  <FileUp className="w-4 h-4" />
+                  Import
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={importConfig}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  onClick={resetToDefault}
+                  className="px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 transition-colors flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Reset to Default
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Result Formatting Settings</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Items per sentence
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={settings.itemsPerSentence}
+                  onChange={(e) => setSettings({ ...settings, itemsPerSentence: parseInt(e.target.value) })}
+                  className="w-24 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-sm text-gray-500 mt-1">How many items to include before starting a new sentence</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sentence connector
+                </label>
+                <select
+                  value={settings.sentenceConnector}
+                  onChange={(e) => setSettings({ ...settings, sentenceConnector: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="and">and</option>
+                  <option value="as well as">as well as</option>
+                  <option value="along with">along with</option>
+                  <option value=",">comma only</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Paragraph connector
+                </label>
+                <select
+                  value={settings.paragraphConnector}
+                  onChange={(e) => setSettings({ ...settings, paragraphConnector: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Also">Also</option>
+                  <option value="Additionally">Additionally</option>
+                  <option value="Furthermore">Furthermore</option>
+                  <option value="Moreover">Moreover</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  List format for 3+ items
+                </label>
+                <select
+                  value={settings.listFormat}
+                  onChange={(e) => setSettings({ ...settings, listFormat: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="oxford">Oxford comma (a, b, and c)</option>
+                  <option value="no-oxford">No Oxford comma (a, b and c)</option>
+                  <option value="semicolon">Semicolon (a; b; c)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Section title suffix
+                </label>
+                <input
+                  type="text"
+                  value={settings.sectionSuffix}
+                  onChange={(e) => setSettings({ ...settings, sectionSuffix: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Result text case
+                </label>
+                <select
+                  value={settings.resultCase}
+                  onChange={(e) => setSettings({ ...settings, resultCase: e.target.value })}
+                  className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="sentence">Sentence case</option>
+                  <option value="lower">lowercase</option>
+                  <option value="title">Title Case</option>
+                </select>
+              </div>
+              
+              <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">Preview:</p>
+                <p className="text-gray-600 italic">
+                  The candidate is more likely to lose a job {settings.sentenceConnector === ',' ? ', ' : settings.sentenceConnector + ' '}
+                  take a risk. {settings.paragraphConnector}, the candidate is more likely to lose money.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default ChecklistApp;

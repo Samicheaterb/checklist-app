@@ -349,6 +349,7 @@
     </div>
 
     <script>
+        // default to cut off at 5 items per sentence, if more than 5, split in 2 sentences (so max of one "additionally")
         // Default configuration
         const defaultConfig = {
             sections: [
@@ -356,7 +357,7 @@
                     name: "Integrity/Ethics",
                     subsections: [
                         {
-                            prefix: "When compared to other police candidates, this candidate is more likely to ",
+                            prefix: "Testing indicated that when compared to other police candidates, this candidate is more likely to ",
                             items: [
                                 { id: 1, text: "have skeptical and/or antisocial views of the world" },
                                 { id: 2, text: "fail to integrate ethical considerations in their decision-making" },
@@ -383,7 +384,7 @@
                     name: "Emotion Regulation/Stress Tolerance",
                     subsections: [
                         {
-                            prefix: "When compared to other police candidates, this candidate is more likely to ",
+                            prefix: "Testing indicated that when compared to other police candidates, this candidate is more likely to ",
                             items: [
                                 { id: 18, text: "worry about problems and be uncertain about how to deal with them" },
                                 { id: 19, text: "become easily discouraged" },
@@ -421,7 +422,7 @@
                     name: "Assertiveness/Persuasiveness",
                     subsections: [
                         {
-                            prefix: "When compared to other police candidates, this candidate is more likely to ",
+                            prefix: "Testing indicated that when compared to other police candidates, this candidate is more likely to ",
                             items: [
                                 { id: 46, text: "lack confidence in their own abilities" },
                                 { id: 47, text: "avoid situations that others generally view as benign and non-intimidating" },
@@ -445,7 +446,7 @@
                     name: "Social Competence",
                     subsections: [
                         {
-                            prefix: "When compared to other police candidates, this candidate is more likely to ",
+                            prefix: "Testing indicated that when compared to other police candidates, this candidate is more likely to ",
                             items: [
                                 { id: 60, text: "have difficulty creating and sustaining mutually satisfying relationships" },
                                 { id: 61, text: "have a limited social support network" },
@@ -473,7 +474,7 @@
                     name: "Impulse Control/Attention to Safety",
                     subsections: [
                         {
-                            prefix: "When compared to other police candidates, this candidate is more likely to ",
+                            prefix: "Testing indicated that when compared to other police candidates, this candidate is more likely to ",
                             items: [
                                 { id: 78, text: "behave impulsively or without adequate consideration of the consequences or implications of their actions" },
                                 { id: 79, text: "have a history of physical aggression" },
@@ -492,7 +493,7 @@
                     name: "Conscientiousness/Dependability",
                     subsections: [
                         {
-                            prefix: "When compared to other police candidates, this candidate is more likely to ",
+                            prefix: "Testing indicated that when compared to other police candidates, this candidate is more likely to ",
                             items: [
                                 { id: 87, text: "give up easily and not persevere in the face of challenges" },
                                 { id: 88, text: "have a history of absenteeism or tardiness" },
@@ -505,7 +506,7 @@
                             ]
                         },
                         {
-                            prefix: "When compared to other police candidates, this candidate is more likely to exhibit difficulties",
+                            prefix: "Testing indicated that when compared to other police candidates, this candidate is more likely to exhibit difficulties",
                             items: [
                                 { id: 95, text: "with conscientiousness" },
                                 { id: 96, text: "reliably attending court" },
@@ -528,7 +529,7 @@
                     name: "Adaptability/Flexibility",
                     subsections: [
                         {
-                            prefix: "When compared to other police candidates, this candidate is more likely to ",
+                            prefix: "Testing indicated that when compared to other police candidates, this candidate is more likely to ",
                             items: [
                                 { id: 108, text: "have a history of job performance problems" },
                                 { id: 109, text: "be rigid and inflexible" },
@@ -546,7 +547,7 @@
                     name: "Teamwork",
                     subsections: [
                         {
-                            prefix: "When compared to other police candidates, this candidate is more likely to ",
+                            prefix: "Testing indicated that when compared to other police candidates, this candidate is more likely to ",
                             items: [
                                 { id: 116, text: "be self-centered" },
                                 { id: 117, text: "have a history of problems getting along with others" },
@@ -588,9 +589,9 @@
         };
 
         const defaultSettings = {
-            itemsPerSentence: 3,
+            itemsPerSentence: 5,
             sentenceConnector: "and",
-            paragraphConnector: "Also",
+            paragraphConnector: "Additionally",
             listFormat: "oxford",
             sectionSuffix: " Section:",
             resultCase: "sentence"
@@ -920,7 +921,7 @@
                         const sentences = [];
                         for (let i = 0; i < checkedItems.length; i += settings.itemsPerSentence) {
                             const items = checkedItems.slice(i, i + settings.itemsPerSentence);
-                            let sentence = `The ${subsection.prefix} `;
+                            let sentence = `${subsection.prefix} `;
                             
                             if (items.length === 1) {
                                 sentence += items[0] + '.';
